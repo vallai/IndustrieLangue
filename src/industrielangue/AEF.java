@@ -7,37 +7,17 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import dk.brics.automaton.*;
+import java.util.Set;
 
 /**
  *
  * @author Christian SCHMIDT
  */
-public class T1 {
+public class AEF {
+    
+    Automaton automaton;
 
-    public T1() {
-        // Extraction du dictionnaire
-        System.out.print("Lecture du dictionnaire ......... ");
-        ArrayList<String> lignes = lireFichier("dico2.tsv");
-        System.out.println("OK");
-
-        // Recuperation des lemmes
-        System.out.print("Recuperation des lemmes ......... ");
-        ArrayList<String[]> lemmes = recupererLemmes(lignes);
-        System.out.println("OK");
-
-        // Encodage des analyses morphologiques
-        System.out.print("Encodage des analyses morphologiques ......... ");
-        CharSequence[] lemmesEncodes = encodageAnalysesMorphologiques(lemmes);
-        System.out.println("OK");
-
-        // Compilation en AEF
-        System.out.print("Compilation en AEF ......... ");
-//        Automaton a = Automaton.makeStringUnion(lemmesEncodes);
-//        RunAutomaton ra = new RunAutomaton(a);
-//        if (ra.run("bonjour")) {
-//            System.out.println("OK");
-//        }
-        System.out.println("KO");
+    public AEF() {
     }
 
     public ArrayList<String> lireFichier(String fichier) {
@@ -90,16 +70,72 @@ public class T1 {
             String terminaison = lemme.substring(nbCommun - 1);
             // Construction de la chaine
             lemmesEncodes[i] = (CharSequence) (forme + (char) 0 + (char) nbCaractereAEnlever + terminaison + (char) 0 + traits);
+//            System.out.println(lemmesEncodes[i]);
             i++;
 //            System.out.println("forme : " + forme + "  lemme : " + lemme + "  traits : " + traits + " nbCar : " + nbCaractereAEnlever + " Terminaison : " + terminaison);
         }
         return lemmesEncodes;
+    }
+    
+    public void analyserMot(String mot) {
+        State e = automaton.getInitialState();
+        int i =0;
+        while ((e!=null) && (i<mot.length())) {
+            e = transiter(e,mot.charAt(i));
+            System.out.print(mot.charAt(i));
+            i++;
+            
+        }
+        if (e!=null) {  // Fin du mot
+            e = transiter(e, (char)0);
+//            System.out.println(e);
+            if (e!=null) { // C'est le mot en entier
+//                listeAnalyseMorpho = recolterAnalyseMorph(mot, e);
+                System.out.println(" -> Le mot existe  :)");
+            } 
+        } else {
+                System.out.println(" -> Le mot n'existe pas :(");
+            } 
+        // Retourner la liste des analyses possible
+    }
+    
+    public State transiter(State e, char c) {
+        Set<Transition> transitions = e.getTransitions();
+        for (Transition transition:transitions) {
+            if (c>=transition.getMin() && c<=transition.getMax()) {
+                return transition.getDest();
+                
+            }
+        }
+        return null; // il n'y a pas de transition
     }
 
     /**
      * @param args the command line arguments
      */
     public static void main(String[] args) {
-        new T1();
+        AEF aef = new AEF();
+        // Extraction du dictionnaire
+        System.out.print("Lecture du dictionnaire ......... ");
+        ArrayList<String> lignes = aef.lireFichier("dico2.tsv");
+        System.out.println("OK");
+
+        // Recuperation des lemmes
+        System.out.print("Recuperation des lemmes ......... ");
+        ArrayList<String[]> lemmes = aef.recupererLemmes(lignes);
+        System.out.println("OK");
+
+        // Encodage des analyses morphologiques
+        System.out.print("Encodage des analyses morphologiques ......... ");
+        CharSequence[] lemmesEncodes = aef.encodageAnalysesMorphologiques(lemmes);
+        System.out.println("OK");
+        
+        // Compilation en AEF
+        System.out.print("Compilation en AEF ......... ");
+        aef.automaton = Automaton.makeStringUnion(lemmesEncodes);
+        System.out.println("OK");
+        
+        // Tests
+        aef.analyserMot("pyrolitique");
     }
 }
