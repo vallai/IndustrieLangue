@@ -20,6 +20,7 @@ public class AEF {
     Automaton automaton;
 
     public AEF() {
+        automaton = null;
     }
 
     public ArrayList<String[]> lireFichier(String fichier) {
@@ -106,26 +107,21 @@ public class AEF {
         return automat;
     }
 
-    public void analyserMot(String mot) {
+    public AnalyseMorphologique[] analyserMot(String mot) {
         State e = automaton.getInitialState();
         int i = 0;
         while ((e != null) && (i < mot.length())) {
             e = transiter(e, mot.charAt(i));
-            System.out.print(mot.charAt(i));
             i++;
 
         }
         if (e != null) {  // Fin du mot
             e = transiter(e, (char) 0);
-//            System.out.println(e);
             if (e != null) { // C'est le mot en entier
-//                String[] listeAnalyseMorpho = recolterAnalyseMorph(mot, e);
-                System.out.println(" -> Le mot existe  :)");
+               return(recolterAnalyseMorph(mot, e));
             }
-        } else {
-            System.out.println(" -> Le mot n'existe pas :(");
         }
-        // Retourner la liste des analyses possible
+        return null;
     }
 
     public State transiter(State e, char c) {
@@ -136,6 +132,63 @@ public class AEF {
             }
         }
         return null; // il n'y a pas de transition
+    }
+
+    public AnalyseMorphologique[] recolterAnalyseMorph(String mot, State e) {
+        // On récupère les chaines complètes
+        ArrayList<String> liste = new ArrayList();
+        for (Transition transition : e.getTransitions()) {
+            String analyse = "";
+            analyse += transition.getMin();
+            liste = recolterCaracteres(analyse, liste, transition.getDest());
+        }
+
+        // On les convertit en AnalyseMorphologique
+        AnalyseMorphologique[] listeAnalyses = new AnalyseMorphologique[liste.size()];
+        for (int i = 0; i < liste.size(); i++) {
+            String lemme = mot.substring(0, mot.length() - (int)liste.get(i).charAt(0)); 
+            String traits = "";
+            boolean debutTraits = false;
+
+            for (int j = 1; j < liste.get(i).length(); j++) {
+                char c = liste.get(i).charAt(j);
+                if (c != (char) 0) {
+                    if (debutTraits) {
+                        traits += c;
+                    } else {
+                        lemme += c;
+                    }
+                } else {
+                    debutTraits = true;
+                }
+            }
+            listeAnalyses[i] = new AnalyseMorphologique(lemme, traits);
+        }
+        return listeAnalyses;
+    }
+
+    public void afficherAnalysesMorphologique(AnalyseMorphologique[] analyses) {
+        if (analyses != null) {
+            System.out.println("Lemme\tTraits\n------------------------------");
+            for (AnalyseMorphologique analyse : analyses) {
+                System.out.println(analyse.getLemme() + "\t" + analyse.getTraits());
+            }
+        } else {
+            System.out.println("Le mot demandé n'a pas été trouvé");
+        }
+    }
+
+    public ArrayList<String> recolterCaracteres(String analyse, ArrayList<String> liste, State e) {
+        String svg = analyse;
+
+        for (Transition transition : e.getTransitions()) {
+            analyse = svg + transition.getMin();
+            if (transition.getDest().getTransitions().isEmpty()) {
+                liste.add(analyse);
+            }
+            liste = recolterCaracteres(analyse, liste, transition.getDest()); // Appel recursif
+        }
+        return liste;
     }
 
     /**
@@ -177,7 +230,11 @@ public class AEF {
 
                 // Test du mot
                 System.out.print("Test du mot \"" + args[2] + "\" ......... ");
-                aef.analyserMot(args[2]);
+                AnalyseMorphologique[] analyses = aef.analyserMot(args[2]);
+                System.out.println("OK\n");
+
+                // Affichage
+                aef.afficherAnalysesMorphologique(analyses);
             } else {
                 System.out.println("Usage :\nCompilation du dictionnaire : java -jar T1.jar <dictionnaire entrée> <dictionnaire sortie>\nTest de l'AEF : java -jar T1.jar -test <dictionnaire AEF> <mot>");
             }
