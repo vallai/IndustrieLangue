@@ -13,7 +13,7 @@ import java.util.Set;
 
 /**
  *
- * @author Christian SCHMIDT
+ * @author Christian SCHMIDT & Gaëtan REMOND
  */
 public class AEF {
 
@@ -23,6 +23,16 @@ public class AEF {
         automaton = null;
     }
 
+    /////////////////////////////////////////////////////////////////////////////
+    ////////////////////         GENERATION DE L'AEF         ////////////////////
+    /////////////////////////////////////////////////////////////////////////////
+    /**
+     * Lit un fichier donné en paramètre et retourne une liste des lignes
+     * découpées selon les tabulations
+     *
+     * @param fichier à lire
+     * @return Liste des lignes découpées selon les tabulations
+     */
     public ArrayList<String[]> lireFichier(String fichier) {
         BufferedReader br;
         String ligne;
@@ -48,14 +58,21 @@ public class AEF {
         return lignes;
     }
 
-    public CharSequence[] encodageAnalysesMorphologiques(ArrayList<String[]> lemmes) {
-        CharSequence[] lemmesEncodes = new CharSequence[lemmes.size()];
+    /**
+     * Construit la suite de caractères pour la création de l'AEF selon la forme
+     * : "forme + 0 + nbCaractereAEnlever + terminaison + 0 + traits"
+     *
+     * @param lignes
+     * @return lignesEncodees
+     */
+    public CharSequence[] encodageAnalysesMorphologiques(ArrayList<String[]> lignes) {
+        CharSequence[] lignesEncodees = new CharSequence[lignes.size()];
         // Pour chaque entrée
         int i = 0;
-        for (String[] entree : lemmes) {
-            String forme = entree[0];
-            String lemme = entree[1];
-            String traits = entree[2];
+        for (String[] ligne : lignes) {
+            String forme = ligne[0];
+            String lemme = ligne[1];
+            String traits = ligne[2];
 
             // On cherche le nombre de caractères communs
             int nbCommun = 0;
@@ -67,13 +84,18 @@ public class AEF {
             int nbCaractereAEnlever = forme.length() - (nbCommun - 1);
             String terminaison = lemme.substring(nbCommun - 1);
             // Construction de la chaine
-            lemmesEncodes[i] = (CharSequence) (forme + (char) 0 + (char) nbCaractereAEnlever + terminaison + (char) 0 + traits);
+            lignesEncodees[i] = (CharSequence) (forme + (char) 0 + (char) nbCaractereAEnlever + terminaison + (char) 0 + traits);
             i++;
 //            System.out.println("forme : " + forme + "  lemme : " + lemme + "  traits : " + traits + " nbCar : " + nbCaractereAEnlever + " Terminaison : " + terminaison);
         }
-        return lemmesEncodes;
+        return lignesEncodees;
     }
 
+    /**
+     * Sauvegarde de l'automaton dans le fichier donné en paramètre
+     *
+     * @param fichier
+     */
     public void sauvegarderAutomaton(String fichier) {
         File file;
         FileOutputStream fop;
@@ -92,6 +114,15 @@ public class AEF {
         }
     }
 
+    /////////////////////////////////////////////////////////////////////////////
+    ///////////////////////         TEST D'UN MOT         ///////////////////////
+    /////////////////////////////////////////////////////////////////////////////
+    /**
+     * Chargement de l'automaton du fichier donné en paramètre
+     *
+     * @param fichier
+     * @return automaton
+     */
     public Automaton chargerAutomaton(String fichier) {
         File file = new File(fichier);
         FileInputStream fis;
@@ -107,23 +138,36 @@ public class AEF {
         return automat;
     }
 
+    /**
+     * Recherche le mot donné en paramètre et retourne une liste d'analyses
+     * morphologique
+     *
+     * @param mot
+     * @return analyses morphologique
+     */
     public AnalyseMorphologique[] analyserMot(String mot) {
         State e = automaton.getInitialState();
         int i = 0;
         while ((e != null) && (i < mot.length())) {
             e = transiter(e, mot.charAt(i));
             i++;
-
         }
         if (e != null) {  // Fin du mot
             e = transiter(e, (char) 0);
             if (e != null) { // C'est le mot en entier
-               return(recolterAnalyseMorph(mot, e));
+                return (recolterAnalyseMorph(mot, e));
             }
         }
         return null;
     }
 
+    /**
+     * Transite dans l'automate à la recherche du prochain caractère
+     *
+     * @param etat actuel
+     * @param caractere recherché
+     * @return etat suivant
+     */
     public State transiter(State e, char c) {
         Set<Transition> transitions = e.getTransitions();
         for (Transition transition : transitions) {
@@ -134,6 +178,13 @@ public class AEF {
         return null; // il n'y a pas de transition
     }
 
+    /**
+     * Récupère les analyses morphologiques d'un mot
+     *
+     * @param mot
+     * @param etat correspondant au caractere 0
+     * @return analyses morphologiques
+     */
     public AnalyseMorphologique[] recolterAnalyseMorph(String mot, State e) {
         // On récupère les chaines complètes
         ArrayList<String> liste = new ArrayList();
@@ -146,7 +197,7 @@ public class AEF {
         // On les convertit en AnalyseMorphologique
         AnalyseMorphologique[] listeAnalyses = new AnalyseMorphologique[liste.size()];
         for (int i = 0; i < liste.size(); i++) {
-            String lemme = mot.substring(0, mot.length() - (int)liste.get(i).charAt(0)); 
+            String lemme = mot.substring(0, mot.length() - (int) liste.get(i).charAt(0));
             String traits = "";
             boolean debutTraits = false;
 
@@ -167,17 +218,13 @@ public class AEF {
         return listeAnalyses;
     }
 
-    public void afficherAnalysesMorphologique(AnalyseMorphologique[] analyses) {
-        if (analyses != null) {
-            System.out.println("Lemme\tTraits\n------------------------------");
-            for (AnalyseMorphologique analyse : analyses) {
-                System.out.println(analyse.getLemme() + "\t" + analyse.getTraits());
-            }
-        } else {
-            System.out.println("Le mot demandé n'a pas été trouvé");
-        }
-    }
-
+    /**
+     * Méthode recursive pour recuperer tous les caractères à partir d'un état
+     * @param analyse
+     * @param liste
+     * @param e
+     * @return chaines de caractères recupérées
+     */
     public ArrayList<String> recolterCaracteres(String analyse, ArrayList<String> liste, State e) {
         String svg = analyse;
 
@@ -192,14 +239,31 @@ public class AEF {
     }
 
     /**
-     * @param args the command line arguments
+     * Affichage des analyses morphologiques
+     * @param analyses 
+     */
+    public void afficherAnalysesMorphologique(AnalyseMorphologique[] analyses) {
+        if (analyses != null) {
+            System.out.println("Lemme\tTraits\n------------------------------");
+            for (AnalyseMorphologique analyse : analyses) {
+                System.out.println(analyse.getLemme() + "\t" + analyse.getTraits());
+            }
+        } else {
+            System.out.println("Le mot demandé n'a pas été trouvé");
+        }
+    }
+    
+
+    /**
+     * Méthode main de la classe
+     * @param args
      */
     public static void main(String[] args) {
         AEF aef = new AEF();
         if (args.length == 2) {
             System.out.println("==== Construction de l'AEF ====");
 
-            // Extraction du dictionnaire
+            // Lecture du dictionnaire
             System.out.print("Lecture du dictionnaire ......... ");
             ArrayList<String[]> lignes = aef.lireFichier(args[0]);
             System.out.println("OK");
@@ -230,7 +294,7 @@ public class AEF {
 
                 // Test du mot
                 System.out.print("Test du mot \"" + args[2] + "\" ......... ");
-                AnalyseMorphologique[] analyses = aef.analyserMot(args[2]);
+                AnalyseMorphologique[] analyses = aef.analyserMot(args[2].toLowerCase());
                 System.out.println("OK\n");
 
                 // Affichage
