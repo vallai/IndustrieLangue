@@ -220,6 +220,7 @@ public class AEF {
 
     /**
      * Méthode recursive pour recuperer tous les caractères à partir d'un état
+     *
      * @param analyse
      * @param liste
      * @param e
@@ -240,7 +241,8 @@ public class AEF {
 
     /**
      * Affichage des analyses morphologiques
-     * @param analyses 
+     *
+     * @param analyses
      */
     public void afficherAnalysesMorphologique(AnalyseMorphologique[] analyses) {
         if (analyses != null) {
@@ -252,56 +254,53 @@ public class AEF {
             System.out.println("Le mot demandé n'a pas été trouvé");
         }
     }
-    
+
+    /////////////////////////////////////////////////////////////////////////////
+    //////////////////         T2 : Lecture d'un fichier        /////////////////
+    /////////////////////////////////////////////////////////////////////////////
+    public String lireFichierTexte(String fichier) {
+        String texte = "";
+        BufferedReader br;
+        String ligne;
+        try {
+            br = new BufferedReader(new FileReader(fichier));
+            while ((ligne = br.readLine()) != null) {
+                texte += ligne;
+            }
+            br.close();
+        } catch (FileNotFoundException ex) {
+            System.out.println("Problème d'ouverture : " + ex.getMessage());
+            System.exit(1);
+        } catch (IOException ex) {
+            System.out.println("Problème de lecture : " + ex.getMessage());
+            System.exit(1);
+        }
+        return texte;
+    }
 
     /**
      * Méthode main de la classe
+     *
      * @param args
      */
     public static void main(String[] args) {
         AEF aef = new AEF();
         if (args.length == 2) {
-            System.out.println("==== Construction de l'AEF ====");
+            System.out.println("==== Test de l'AEF ====");
 
-            // Lecture du dictionnaire
-            System.out.print("Lecture du dictionnaire ......... ");
-            ArrayList<String[]> lignes = aef.lireFichier(args[0]);
+            // Chargement de l'AEF
+            System.out.print("Chargement de l'AEF ......... ");
+            aef.automaton = aef.chargerAutomaton(args[0]);
             System.out.println("OK");
-
-            // Encodage des analyses morphologiques
-            System.out.print("Encodage des analyses morphologiques ......... ");
-            CharSequence[] analyses = aef.encodageAnalysesMorphologiques(lignes);
+            
+            // Lecture du texte
+            System.out.print("Lecture du texte ......... ");
+            String texte = aef.lireFichierTexte(args[1]);
             System.out.println("OK");
-
-            // Génération de l'AEF
-            System.out.print("Génération de l'AEF ......... ");
-            aef.automaton = Automaton.makeStringUnion(analyses);
-            System.out.println("OK");
-
-            // Sauvegarde de l'AEF
-            System.out.print("Sauvegarde de l'AEF ......... ");
-            aef.sauvegarderAutomaton(args[1]);
-            System.out.println("OK");
-
-        } else {
-            if (args.length == 3 && args[0].matches("-test")) {
-                System.out.println("==== Test de l'AEF ====");
-
-                // Chargement de l'AEF
-                System.out.print("Chargement de l'AEF ......... ");
-                aef.automaton = aef.chargerAutomaton(args[1]);
-                System.out.println("OK");
-
-                // Test du mot
-                System.out.print("Test du mot \"" + args[2] + "\" ......... ");
-                AnalyseMorphologique[] analyses = aef.analyserMot(args[2].toLowerCase());
-                System.out.println("OK\n");
-
-                // Affichage
-                aef.afficherAnalysesMorphologique(analyses);
-            } else {
-                System.out.println("Usage :\nCompilation du dictionnaire : java -jar T1.jar <dictionnaire entrée> <dictionnaire sortie>\nTest de l'AEF : java -jar T1.jar -test <dictionnaire AEF> <mot>");
-            }
+            
+            // Segmentation du texte
+            System.out.print("Segmentation du texte ......... ");
+            
         }
     }
 }
