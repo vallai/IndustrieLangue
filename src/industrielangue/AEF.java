@@ -9,10 +9,13 @@ import dk.brics.automaton.*;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.io.PrintWriter;
+import java.io.UnsupportedEncodingException;
 import java.util.Set;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
- *
  * @author Christian SCHMIDT & Gaëtan REMOND
  */
 public class AEF {
@@ -258,6 +261,7 @@ public class AEF {
     /////////////////////////////////////////////////////////////////////////////
     //////////////////         T2 : Lecture d'un fichier        /////////////////
     /////////////////////////////////////////////////////////////////////////////
+    
     public String lireFichierTexte(String fichier) {
         String texte = "";
         BufferedReader br;
@@ -277,30 +281,143 @@ public class AEF {
         }
         return texte;
     }
+    
+    public void ecrireFichierTexte(String texte, String fichier) {
+        try {
+            PrintWriter pw = new PrintWriter(fichier, "UTF-8");
+            pw.print(texte);
+            pw.close();
+        } catch (FileNotFoundException ex) {
+            System.out.println("Problème de fichier : " + ex.getMessage());
+            System.exit(1);
+        } catch (UnsupportedEncodingException ex) {
+            System.out.println("Problème d'encodage : " + ex.getMessage());
+            System.exit(1);
+        }
+    }
 
     /**
-     * Méthode main de la classe
-     *
-     * @param args
+     * Analyse un texte et retourne les analyses morphologiques de chaque mot sous la forme :
+     * i-lg forme lemme traits
+     * @param texte
+     * @return 
      */
+    public String analyserTexte(String texte) {
+        String analyseTexte = "";
+        int index = 0;
+
+        Token token = lire_token(texte, index);
+        while (token != null) {
+            String affichageToken = token.getOffset() + "-" + token.getForme().length() + "\t" + token.getForme();
+            if (token.getAnalyses() == null) {
+                analyseTexte += affichageToken + "\n";
+            } else {
+                for (AnalyseMorphologique analyse : token.getAnalyses()) {
+                    analyseTexte += affichageToken + "\t" + analyse.getLemme() + "\t" + analyse.getTraits() + "\n";
+                }
+            }
+            analyseTexte += "\n";
+            index = token.getOffset() + token.getForme().length();
+            token = lire_token(texte, index);
+        }
+        return analyseTexte;
+    }
+
+    /**
+     * Transite dans l'AEF pour trouver chaque mot selon la stratégie du 
+     * mot le plus long
+     * @param texte
+     * @param index
+     * @return 
+     */
+    public Token lire_token(String texte, int index) {
+        State e = automaton.getInitialState();
+        int i = index;
+
+        State svgEtat = null;
+        int svgIndex = 0;
+
+        // On transite sur le texte selon la strategie du mot le plus long
+        while (e != null && i < texte.length()) {
+            e = transiter(e, texte.charAt(i));
+
+            if (e != null) { // Fin de la correspondance des caractères
+                // Si l'etat suivant est 0 -> fin du mot donc sauvegarde de l'etat et de l'indice
+                State etat0 = transiter(e, (char) 0);
+                if (etat0 != null) {
+                    svgEtat = etat0;
+                    svgIndex = i;
+                }
+            }
+            i++;
+        }
+
+        if (svgEtat != null) { // Mot reconnu
+            int offset = index;
+            String forme = texte.substring(index, svgIndex + 1);
+
+            if (svgIndex + 1 < texte.length()) { // Fin du texte au caractère suivant ?
+                if (!isLettre(texte.charAt(svgIndex + 1))) { // Si le caractère suivant n'est pas une lettre -> Mot connu
+                    return new Token(offset, forme, recolterAnalyseMorph(forme, svgEtat));
+                } else {
+                    String mot = texte.substring(index);
+                    int lastIndex = mot.indexOf(" ");
+                    // Si il y a une ponctuation on la retire
+                    if (!isLettre(mot.charAt(lastIndex - 1))) {
+                        mot = mot.substring(0, lastIndex - 1);
+                    } else {
+                        mot = mot.substring(0, lastIndex);
+                    }
+                    return new Token(index, "" + mot, null);
+                }
+            } else { // Fin du texte
+                return new Token(offset, forme, recolterAnalyseMorph(forme, svgEtat));
+            }
+        } else {
+            if (i == texte.length()) { // Fin du texte
+                return null;
+            } else {
+                if (!isLettre(texte.charAt(index))) { // Si le caractere n'est pas une lettre, on avance
+                    return lire_token(texte, i);
+                } else { // Mot inconnu
+                    return new Token(index, "" + texte.charAt(index), null);
+                }
+            }
+        }
+    }
+
+    /**
+     * Verifie si le caractère est une lettre
+     * @param c
+     * @return 
+     */
+    public boolean isLettre(char c) {
+        String tmp = c + "";
+        return tmp.matches("[a-zA-ZáàâäãåçéèêëíìîïñóòôöõúùûüýÿæœÁÀÂÄÃÅÇÉÈÊËÍÌÎÏÑÓÒÔÖÕÚÙÛÜÝŸÆŒ]");
+    }
+
     public static void main(String[] args) {
         AEF aef = new AEF();
         if (args.length == 2) {
-            System.out.println("==== Test de l'AEF ====");
+            System.out.println("==== Segmentation et analyse morphologique de textes ====");
 
-            // Chargement de l'AEF
             System.out.print("Chargement de l'AEF ......... ");
             aef.automaton = aef.chargerAutomaton(args[0]);
             System.out.println("OK");
-            
-            // Lecture du texte
+
             System.out.print("Lecture du texte ......... ");
             String texte = aef.lireFichierTexte(args[1]);
             System.out.println("OK");
+
+            System.out.print("Analyse du texte ......... ");
+            String analyse = aef.analyserTexte(texte.toLowerCase());
+            System.out.println("OK");
             
-            // Segmentation du texte
-            System.out.print("Segmentation du texte ......... ");
+            System.out.print("Ecriture du fichier ......... ");
+            aef.ecrireFichierTexte(analyse, args[1]+".t2");
+            System.out.println("OK");
             
+//            System.out.println(analyse);
         }
     }
 }
