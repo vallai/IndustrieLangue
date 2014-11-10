@@ -9,6 +9,7 @@ import dk.brics.automaton.*;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.io.UnsupportedEncodingException;
 import java.util.Set;
@@ -261,13 +262,12 @@ public class AEF {
     /////////////////////////////////////////////////////////////////////////////
     //////////////////         T2 : Lecture d'un fichier        /////////////////
     /////////////////////////////////////////////////////////////////////////////
-    
     public String lireFichierTexte(String fichier) {
         String texte = "";
         BufferedReader br;
         String ligne;
         try {
-            br = new BufferedReader(new FileReader(fichier));
+            br = new BufferedReader(new InputStreamReader(new FileInputStream(fichier), "UTF8"));
             while ((ligne = br.readLine()) != null) {
                 texte += ligne;
             }
@@ -281,7 +281,7 @@ public class AEF {
         }
         return texte;
     }
-    
+
     public void ecrireFichierTexte(String texte, String fichier) {
         try {
             PrintWriter pw = new PrintWriter(fichier, "UTF-8");
@@ -299,8 +299,9 @@ public class AEF {
     /**
      * Analyse un texte et retourne les analyses morphologiques de chaque mot sous la forme :
      * i-lg forme lemme traits
+     *
      * @param texte
-     * @return 
+     * @return
      */
     public String analyserTexte(String texte) {
         String analyseTexte = "";
@@ -324,11 +325,12 @@ public class AEF {
     }
 
     /**
-     * Transite dans l'AEF pour trouver chaque mot selon la stratégie du 
+     * Transite dans l'AEF pour trouver chaque mot selon la stratégie du
      * mot le plus long
+     *
      * @param texte
      * @param index
-     * @return 
+     * @return
      */
     public Token lire_token(String texte, int index) {
         State e = automaton.getInitialState();
@@ -388,8 +390,9 @@ public class AEF {
 
     /**
      * Verifie si le caractère est une lettre
+     *
      * @param c
-     * @return 
+     * @return
      */
     public boolean isLettre(char c) {
         String tmp = c + "";
@@ -412,12 +415,13 @@ public class AEF {
             System.out.print("Analyse du texte ......... ");
             String analyse = aef.analyserTexte(texte.toLowerCase());
             System.out.println("OK");
-            
+
             System.out.print("Ecriture du fichier ......... ");
-            aef.ecrireFichierTexte(analyse, args[1]+".t2");
+            aef.ecrireFichierTexte(analyse, args[1] + ".t2");
             System.out.println("OK");
-            
 //            System.out.println(analyse);
+        } else {
+            System.out.println("Usage : java -jar T2.jar <dictionnaire AEF> <fichier texte>");
         }
     }
 }
