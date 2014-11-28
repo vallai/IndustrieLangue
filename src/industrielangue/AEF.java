@@ -262,6 +262,12 @@ public class AEF {
     /////////////////////////////////////////////////////////////////////////////
     //////////////////         T2 : Lecture d'un fichier        /////////////////
     /////////////////////////////////////////////////////////////////////////////
+    
+    /**
+     * Lit un fichier texte encodé en UTF8
+     * @param fichier
+     * @return 
+     */
     public String lireFichierTexte(String fichier) {
         String texte = "";
         BufferedReader br;
@@ -282,6 +288,11 @@ public class AEF {
         return texte;
     }
 
+    /**
+     * Ecrit un fichier texte encodé en UTF8
+     * @param texte
+     * @param fichier 
+     */
     public void ecrireFichierTexte(String texte, String fichier) {
         try {
             PrintWriter pw = new PrintWriter(fichier, "UTF-8");
