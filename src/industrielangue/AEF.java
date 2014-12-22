@@ -13,6 +13,8 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.io.UnsupportedEncodingException;
 import java.util.Set;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * @author Christian SCHMIDT & Gaëtan REMOND
@@ -21,9 +23,9 @@ public class AEF {
 
     Automaton automaton;
     ArrayList<Token> tokens = new ArrayList<>();
-    private int nbAttributs = 35;
-    private String[] differentesClass = {"E", "D-Org", "D-Pers", "D-Loc", "I-Org", "I-Pers", "I-Loc"};
-    
+    private final int nbAttributs = 31;
+    private final String[] differentesClass = {"E", "D-Org", "D-Pers", "D-Loc", "I-Org", "I-Pers", "I-Loc"};
+
     public AEF() {
         automaton = null;
     }
@@ -271,14 +273,14 @@ public class AEF {
      * @param fichier
      * @return
      */
-    public String lireFichierTexte(String fichier) {
+    public String lireFichierTexte(String fichier, String separateur) {
         String texte = "";
         BufferedReader br;
         String ligne;
         try {
             br = new BufferedReader(new InputStreamReader(new FileInputStream(fichier), "UTF8"));
             while ((ligne = br.readLine()) != null) {
-                texte += ligne;
+                texte += ligne + separateur;
             }
             br.close();
         } catch (FileNotFoundException ex) {
@@ -290,7 +292,7 @@ public class AEF {
         }
         return texte;
     }
-    
+
     /**
      * parse un texte
      *
@@ -303,7 +305,7 @@ public class AEF {
         texte = texte.replace("(", " ( ");
         texte = texte.replace(")", " ) ");
         texte = texte.replace("'", " ' ");
-        texte = texte.replace(" E", " E ");
+        texte = texte.replace(" E\n", " E \n");
         texte = texte.replace(" D-ORG", " DORG ");
         texte = texte.replace(" I-ORG", " IORG ");
         texte = texte.replace(" D-PERS", " DPERS ");
@@ -452,22 +454,52 @@ public class AEF {
     /////////////////////////////////////////////////////////////////////////////
     ///////////////         T4 : Apprentissage automatique        ///////////////
     /////////////////////////////////////////////////////////////////////////////
-    public String perceptronSimple() {
+    /**
+     * Méthode d'annotation par percetron simpl
+     *
+     * @param matrice la matrice utilisée pour calculer le argmax
+     * @return
+     */
+    public String perceptronAnnot(int[][] matrice) {
         this.calculVecteurs();
-//        for (int i = 0; i < 100; i++) {
-            return boucle(10);
-//        }
+        String res = "";
+        int compteurBon = 0, compteurMauvais = 0;
+        this.majVecteurs();
+        for (Token token : tokens) {
+            int classMax = calculClassMax(matrice, token);
+            token.setC_res(differentesClass[classMax]);
+            res += token.getForme() + "\t" + token.getC_res() + "\n";
+
+            if (token.getC_ref() != null) {
+                if (!token.getC_res().equals(token.getC_ref())) {
+                    compteurMauvais++;
+                } else {
+                    compteurBon++;
+                }
+            }
+        }
+        if (compteurBon + compteurMauvais > tokens.size() - 10) {
+            float precision = (float) compteurBon / (float) (compteurBon + compteurMauvais);
+            System.out.println("");
+            System.out.println("Précision : " + precision);
+        }
+        return res;
     }
 
-    private String boucle(int fin) {
-        int[][] currentMatrice = initMatrice();
+    /**
+     * Méthode d'apprentissage par perceptron
+     *
+     * @return int[][] matrice d'apprentissage
+     */
+    public String perceptronTrain() {
+        // Calcul du vecteur invariable
+        this.calculVecteurs();
         int[][] futureMatrice = initMatrice();
-
-        
-        for (int i = 0; i < fin; i++) {
-
-            int compteurBon = 0, compteurMauvais = 0, enDetect = 0, enNonDetect = 0,
-                    fauxEnDetect = 0, mauvaisEnDetect = 0, bonEnDetect = 0;
+        int[][] currentMatrice = initMatrice();
+        int nbIterations = 10;
+        for (int i = 0; i < nbIterations; i++) {
+            int compteurBon = 0, compteurMauvais = 0;
+            // Calcul du vecteur variable
             this.majVecteurs();
             for (Token token : tokens) {
                 int classMax = calculClassMax(currentMatrice, token);
@@ -475,85 +507,27 @@ public class AEF {
 
                 if (!token.getC_res().equals(token.getC_ref())) {
                     recalculMatrice(futureMatrice, token);
-                    if (i == fin-1) {
+                    if (i == nbIterations - 1) {
                         System.out.println(token.toString());
                     }
                     compteurMauvais++;
                 } else {
                     compteurBon++;
                 }
-                if (!token.getC_res().equals("E") && !token.getC_ref().equals("E")) {
-                    enDetect++;
-                    if (!token.getC_res().equals(token.getC_ref())) {
-                        mauvaisEnDetect++;
-                    } else {
-                        bonEnDetect++;
-                    }
-                } else {
-                    if (!token.getC_res().equals("E") && token.getC_ref().equals("E")) {
-                        fauxEnDetect++;
-                    } else {
-                        if (token.getC_res().equals("E") && !token.getC_ref().equals("E")) {
-                            enNonDetect++;
-                        }
-                    }
-                }
-
-                if (i == fin - 1) {
-//                    System.out.println(token.toString());
-                }
             }
-//            if (i == fin - 1) {
-            float precision = (float)compteurBon / (float)(compteurBon+compteurMauvais);
-                System.out.println("");
-                System.out.println("itération " + i);
-                System.out.println("///////////////////////////////////////////////////////////// " + precision);
-                System.out.println("bon " + compteurBon + " mauvais " + compteurMauvais);
-                System.out.println("EN detect " + enDetect + " \nEN non detect " + enNonDetect + " \nFaux EN detect " + fauxEnDetect 
-                        + " \nMauvais EN detect " + mauvaisEnDetect+ " \nBon EN detect " + bonEnDetect);
-//            }
+            float precision = (float) compteurBon / (float) (compteurBon + compteurMauvais);
+            System.out.println("");
+            System.out.println("itération " + i);
+            System.out.println("Précision : " + precision);
             currentMatrice = futureMatrice;
         }
         return matriceToString(currentMatrice);
     }
-    /*
-     Traits
-     0  commence par une majuscule et n'est pas précédé d'un point
-     1  est entièrement en majuscule
-     2  n'est pas dans le dictionnaire
-     3  est quelque chose qui peut être de type Nom:[Mas|Fem]+SG
-     4  est quelque chose qui peut être de type Adj:[Mas|Fem|InvGen]+SG
-     5  est quelque chose qui peut être de type Con
-     6  est quelque chose qui peut être de type Pre
-     //    
-     7  précédé de quelque chose qui peut être un Det
-     8  précédé de quelque chose qui peut être un adjectif
-     9  précédé de quelque chose qui peut être une Pre
-     10   précédé de quelque chose qui peut être un Con
-     11   précédé de quelque chose qui peut être un Nom:[Mas|Fem]+SG
-     12   précédé de quelque chose qui peut être un Ver:[a-zA-Z]{4}+SG+P3
-     13   précédé de quelque chose qui n'est pas dans le dictionnaire
 
-     14   précédé de quelque chose qui commence par une majuscule
-     15 précédé d'un apostrophe
-     16  précédé d'une virgule
-     17 précédé d'une parenthère ouvrante
-     18  précédé de M.
-     19  précédé de MM.
-    
-     20  suivi d'une virgule
-     21 suivi d'une parenthère fermante
-     22 suivi de quelque chose qui peut être un Det
-     23 suivi de quelque chose qui peut être un Con
-     24 suivi de quelque chose qui peut être un Adj:[Mas|Fem|InvGen]+SG
-     25 suivi de quelque chose qui peut être un Ver:[a-zA-Z]{4}+SG+P3
-     26 suivi de quelque chose qui peut être une Pre
-     27 précédé d'un D-Org
-     28 précédé d'un D-Pers
-     29 précédé d'un D-Loc
-     30 précédé d'un E
+    /**
+     * Calcul les attributs de chaque token qui ne changent pas au cours des
+     * itération
      */
-
     private void calculVecteurs() {
         for (int i = 0; i < tokens.size(); i++) {
             Token currentToken = tokens.get(i);
@@ -607,13 +581,13 @@ public class AEF {
                 traits[17] = precToken.getForme().equals("(");//=
 
                 //27 précédé d'un D-Org
-                traits[27] = false;
+                traits[nbAttributs - 4] = false;
 //                //28 précédé d'un D-Pers
-                traits[28] = false;
+                traits[nbAttributs - 3] = false;
 //                //29 précédé d'un D-Loc
-                traits[29] = false;
-                //33 précédé d'un D-Loc
-                traits[33] = false;
+                traits[nbAttributs - 2] = false;
+                //30 précédé d'un D-Loc
+                traits[nbAttributs - 1] = false;
 
                 if (i >= 2) {
                     Token precPrecToken = tokens.get(i - 2);
@@ -649,27 +623,36 @@ public class AEF {
             currentToken.setAttributs(traits);
         }
     }
-    
+
+    /**
+     * Calcul les attributs de chaque toen qui changent au cours du temps
+     */
     private void majVecteurs() {
         for (int i = 0; i < tokens.size(); i++) {
             Token currentToken = tokens.get(i);
             boolean[] traits = currentToken.getAttributs();
             if (i >= 1) {
                 Token precToken = tokens.get(i - 1);
-                // 27 précédé d'un D-Org
-                traits[27] = precToken.getC_res().equals("D-Org");
-                //28 précédé d'un D-Pers
-                traits[28] = precToken.getC_res().equals("D-Pers");
-                //29 précédé d'un D-Loc
-                traits[29] = precToken.getC_res().equals("D-Loc");
-                // 33 précédé d'un D-Loc
-                traits[30] = precToken.getC_res().equals("E");//-
+                // avavav dernier précédé d'un D-Org
+                traits[nbAttributs - 4] = precToken.getC_res().equals("D-Org");
+                //avav dernier précédé d'un D-Pers
+                traits[nbAttributs - 3] = precToken.getC_res().equals("D-Pers");
+                //avant dernier précédé d'un D-Loc
+                traits[nbAttributs - 2] = precToken.getC_res().equals("D-Loc");
+                // dernier précédé d'un D-Loc
+                traits[nbAttributs - 1] = precToken.getC_res().equals("E");//-
             }
             currentToken.setAttributs(traits);
         }
     }
 
-    public int recalculMatrice(int[][] matrice, Token token) {
+    /**
+     * Met à jour la matrice
+     *
+     * @param matrice matrice à mettre à jour
+     * @param token token possédant le c_res et c_ref à modifier
+     */
+    private void recalculMatrice(int[][] matrice, Token token) {
         boolean[] attributs = token.getAttributs();
         for (int i = 0; i < attributs.length; i++) {
             if (attributs[i]) {
@@ -678,13 +661,16 @@ public class AEF {
             }
         }
 //        afficheMatrice(matrice);
-        return 0;
     }
 
+    /**
+     * Affiche la matrice passée en paramètre dans le terminal
+     *
+     * @param matrice matrice à afficher
+     */
     private void afficheMatrice(int[][] matrice) {
         for (int i = 0; i < nbAttributs; i++) {
             System.out.print(i + "\t");
-
         }
         System.out.println("");
         for (int[] ligne : matrice) {
@@ -695,6 +681,13 @@ public class AEF {
         }
     }
 
+    /**
+     * Transforme la matrice passée en paramètre en string pour l'écrire dans un
+     * fichier
+     *
+     * @param matrice matrice à passer en string
+     * @return la matrice sous forme de string
+     */
     private String matriceToString(int[][] matrice) {
         String stringMatrice = "";
         for (int[] ligne : matrice) {
@@ -706,7 +699,34 @@ public class AEF {
         return stringMatrice;
     }
 
-    public int calculClassMax(int[][] matrice, Token token) {
+    /**
+     * Permet de transformer la matrice récupéré dans le fichier au format
+     * string en un int[][]
+     *
+     * @param matriceString string à tranformer
+     * @return matrice au format int[][]
+     */
+    private int[][] stringToMatrice(String matriceString) {
+        int[][] matrice = new int[7][nbAttributs];
+        String[] lignes = matriceString.split("\n");
+        for (int i = 0; i < lignes.length; i++) {
+            String[] cases = lignes[i].split("\t");
+            for (int j = 0; j < cases.length; j++) {
+                matrice[i][j] = Integer.parseInt(cases[j]);
+            }
+        }
+        return matrice;
+    }
+
+    /**
+     * Calcul la class qui a le plus de chance d'être la bone pour un token
+     * donné paramètre
+     *
+     * @param matrice matrice de poids
+     * @param token token donc on veut le argmax
+     * @return
+     */
+    private int calculClassMax(int[][] matrice, Token token) {
         boolean[] attributs = token.getAttributs();
         int[] maxs = new int[7];
         int indexMax = 0;
@@ -717,18 +737,20 @@ public class AEF {
                     maxs[i] += matrice[i][j];
                 }
             }
-//            System.out.println(maxs[i]);
             if (max < maxs[i]) {
                 indexMax = i;
                 max = maxs[i];
-//                System.out.println(max + " - " + maxs[i]);
             }
-//            System.out.println("indexMax = " + indexMax + " max = " + max);
         }
         return indexMax;
     }
 
-    public int[][] initMatrice() {
+    /**
+     * Initialise la matrice
+     *
+     * @return retourne la matrice avec tous les pids à 1
+     */
+    private int[][] initMatrice() {
         int[][] matrice = new int[7][nbAttributs];
         for (int[] matrice1 : matrice) {
             for (int j = 0; j < matrice1.length; j++) {
@@ -738,42 +760,71 @@ public class AEF {
         return matrice;
     }
 
+    private final String[] nomTraits = {"MAJ1", "MAJTOUT", "INCONNU", "CAT_NOM", "CAT_ADJ", "CAT_CON", "CAT_PRE",
+        "-1CAT_DET", "-1CAT_ADJ", "-1CAT_PRE", "-1CAT_CON", "-1CAT_NOM", "-1CAT_VER", "-1INCONNU",
+        "-1APO", "-1VIRG", "-1PARO", "-1M.", "-1MM.", "-1MAJ1",
+        "+1CAT_VIRG","+1CAT_PARF","+1CAT_DET", "+1CAT_CON", "+1CAT_ADJ", "+1CAT_VER", "+1CAT_PRE"};
+
+    public MaxentClassifier AjouterInstances() {
+        MaxentClassifier cl = new MaxentClassifier();
+
+        calculVecteurs();
+        for (Token token : tokens) {
+            String attributs = "";
+            boolean[] traits = token.getAttributs();
+            for (int i = 0; i < traits.length-4; i++) {
+                attributs += nomTraits[i] + "=" + traits[i] + " ";
+            }
+            cl.addInstance(attributs, token.getC_ref());
+        }
+        return cl;
+    }
+
+    
+
     public static void main(String[] args) {
         AEF aef = new AEF();
-        if (args.length == 5 && args[0].equals("-train")) {
-            if (args[1].equals("-percept")) {
-                System.out.println("==== Segmentation et analyse morphologique de textes ====");
+        if ((args.length == 5 && args[0].equals("-train")) || (args.length == 6 && args[0].equals("-annot"))) {
+            aef.automaton = aef.chargerAutomaton("../dico.aef");
 
-                System.out.print("Chargement de l'AEF ......... ");
-                aef.automaton = aef.chargerAutomaton("../dico.aef");
-                System.out.println("OK");
-
-                System.out.print("Lecture du texte ......... ");
-                String texte = aef.lireFichierTexte(args[2]);
-                System.out.println("OK");
-
-                System.out.print("Parsage du texte ......... ");
+            if (args.length == 5 && args[0].equals("-train")) {
+                String texte = aef.lireFichierTexte(args[2], " ");
                 String texteParse = aef.parserTexte(texte);
-                System.out.println("OK");
-
-                System.out.print("Analyse du texte ......... ");
                 String analyse = aef.analyserTexte(texteParse);
-//            String analyse = aef.analyserTexte(texte.toLowerCase());
-                System.out.println("OK");
+                if (args[1].equals("-percept")) {
+                    String enPercept = aef.perceptronTrain();
+                    aef.ecrireFichierTexte(enPercept, args[4]);
+                } else if (args[1].equals("-maxent")) {
+                    MaxentClassifier cl = aef.AjouterInstances();
 
-                System.out.print("Apprentissage du texte ......... ");
-                System.out.println("");
-                String enPercept = aef.perceptronSimple();
-                System.out.println("OK");
-
-                System.out.print("Ecriture du fichier ......... ");
-//            aef.ecrireFichierTexte(analyse, args[1] + ".t2");
-                aef.ecrireFichierTexte(enPercept, args[4]);
-                System.out.println("OK");
-//            System.out.println(analyse);
-            } else {
-                if (args[1].equals("-maxent")) {
+                    try {
+                        cl.trainOnInstances();
+                        cl.saveModel(args[4]);
+                    } catch (IOException ex) {
+                        Logger.getLogger(AEF.class.getName()).log(Level.SEVERE, null, ex);
+                    }
                     System.out.println("méthode -maxent pas encore implémentée");
+                }
+
+            } else if (args.length == 6 && args[0].equals("-annot")) {
+                if (args[1].equals("-percept")) {
+                    String texte = aef.lireFichierTexte(args[5], " ");
+                    String texteParse = aef.parserTexte(texte);
+                    String analyse = aef.analyserTexte(texteParse);
+
+                    String matriceString = aef.lireFichierTexte(args[3], "\n");
+                    int[][] matrice = aef.stringToMatrice(matriceString);
+                    String texteAnnote = aef.perceptronAnnot(matrice);
+                    aef.ecrireFichierTexte(texteAnnote, args[5].replace(".txt", "_annote.txt"));
+                    System.out.println("Le texte annoté a été écrit dans le fichier " + args[5].replace(".txt", "_annote.txt"));
+                } else if (args[1].equals("-maxent")) {
+                    MaxentClassifier cl = new MaxentClassifier();
+                    try {
+                        cl.loadModel(args[3]);
+                    } catch (IOException ex) {
+                        Logger.getLogger(AEF.class.getName()).log(Level.SEVERE, null, ex);
+                    }
+
                 }
             }
         } else {
@@ -804,7 +855,7 @@ public class AEF {
 //
 //            System.out.print("Apprentissage du texte ......... ");
 //            System.out.println("");
-//            aef.perceptronSimple();
+//            aef.perceptronTrain();
 //            System.out.println("OK");
 //
 //            System.out.print("Ecriture du fichier ......... ");

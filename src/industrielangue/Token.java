@@ -12,7 +12,7 @@ public class Token {
     private boolean[] attributs;
 //    {false, false, false, false, false, false, false, false, false, false, false, false, false};
     private String c_res = "E";
-    private String c_ref = "E";
+    private String c_ref = null;
 
     public Token(int offset, String forme, AnalyseMorphologique[] analyses, int nbAttributs) {
         this.offset = offset;
@@ -130,7 +130,7 @@ public class Token {
                 break;
         }
     }
-
+    
     @Override
     public String toString() {
         String retour = this.offset + "\t" + this.forme + "\t";
