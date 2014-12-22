@@ -779,6 +779,29 @@ public class AEF {
         }
         return cl;
     }
+    
+    public String meilleuresPredictions(MaxentClassifier cl){
+        String res = "";
+        calculVecteurs();
+        int bonPred = 0, mauvaisePred = 0;
+        for (Token token : tokens) {
+            String attributs = "";
+            boolean[] traits = token.getAttributs();
+            for (int i = 0; i < traits.length-4; i++) {
+                attributs += nomTraits[i] + "=" + traits[i] + " ";
+            }
+            String c_res = cl.getBestPrediction(attributs);
+            if(c_res.equals(token.getC_ref())){
+                bonPred++;
+            } else {
+                mauvaisePred++;
+            }
+            res += token.getForme() + "\t" + c_res + "\n";
+        }
+        float precision = (float)bonPred / (float)(bonPred+mauvaisePred);
+        System.out.println("Précision : " + precision);
+        return res;
+    }
 
     
 
@@ -796,14 +819,12 @@ public class AEF {
                     aef.ecrireFichierTexte(enPercept, args[4]);
                 } else if (args[1].equals("-maxent")) {
                     MaxentClassifier cl = aef.AjouterInstances();
-
                     try {
                         cl.trainOnInstances();
                         cl.saveModel(args[4]);
                     } catch (IOException ex) {
                         Logger.getLogger(AEF.class.getName()).log(Level.SEVERE, null, ex);
                     }
-                    System.out.println("méthode -maxent pas encore implémentée");
                 }
 
             } else if (args.length == 6 && args[0].equals("-annot")) {
@@ -818,13 +839,19 @@ public class AEF {
                     aef.ecrireFichierTexte(texteAnnote, args[5].replace(".txt", "_annote.txt"));
                     System.out.println("Le texte annoté a été écrit dans le fichier " + args[5].replace(".txt", "_annote.txt"));
                 } else if (args[1].equals("-maxent")) {
+                    String texte = aef.lireFichierTexte(args[5], " ");
+                    String texteParse = aef.parserTexte(texte);
+                    String analyse = aef.analyserTexte(texteParse);
+                    
                     MaxentClassifier cl = new MaxentClassifier();
                     try {
                         cl.loadModel(args[3]);
+                        String texteAnnote = aef.meilleuresPredictions(cl);
+                        aef.ecrireFichierTexte(texteAnnote, args[5].replace(".txt", "_annote.txt"));
+                        System.out.println("Le texte annoté a été écrit dans le fichier " + args[5].replace(".txt", "_annote.txt"));
                     } catch (IOException ex) {
                         Logger.getLogger(AEF.class.getName()).log(Level.SEVERE, null, ex);
                     }
-
                 }
             }
         } else {
