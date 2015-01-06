@@ -9,13 +9,9 @@ import dk.brics.automaton.*;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
-import java.io.InputStreamReader;
-import java.io.PrintWriter;
-import java.io.UnsupportedEncodingException;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 /**
+ * Class de chargement du dictionnaire
  * @author Christian SCHMIDT & Gaëtan REMOND
  */
 public class AEF {
@@ -118,6 +114,14 @@ public class AEF {
         }
     }
 
+    public Automaton getAutomaton() {
+        return automaton;
+    }
+
+    public void setAutomaton(Automaton automaton) {
+        this.automaton = automaton;
+    }
+
     /////////////////////////////////////////////////////////////////////////////
     ///////////////////////         TEST D'UN MOT         ///////////////////////
     /////////////////////////////////////////////////////////////////////////////
@@ -127,7 +131,7 @@ public class AEF {
      * @param fichier
      * @return automaton
      */
-    public Automaton chargerAutomaton(String fichier) {
+    public void chargerAutomaton(String fichier) {
         File file = new File(fichier);
         FileInputStream fis;
         Automaton automat = null;
@@ -139,7 +143,7 @@ public class AEF {
             System.out.println("Problème de lecture : " + ex.getMessage());
             System.exit(1);
         }
-        return automat;
+        automaton = automat;
     }
 
 
@@ -160,99 +164,8 @@ public class AEF {
     }
 
     /////////////////////////////////////////////////////////////////////////////
-    //////////////////         T2 : Lecture d'un fichier        /////////////////
-    /////////////////////////////////////////////////////////////////////////////
-    /**
-     * Lit un fichier texte encodé en UTF8
-     *
-     * @param fichier
-     * @return
-     */
-    public String lireFichierTexte(String fichier, String separateur) {
-        String texte = "";
-        BufferedReader br;
-        String ligne;
-        try {
-            br = new BufferedReader(new InputStreamReader(new FileInputStream(fichier), "UTF8"));
-            while ((ligne = br.readLine()) != null) {
-                texte += ligne + separateur;
-            }
-            br.close();
-        } catch (FileNotFoundException ex) {
-            System.out.println("Problème d'ouverture : " + ex.getMessage());
-            System.exit(1);
-        } catch (IOException ex) {
-            System.out.println("Problème de lecture : " + ex.getMessage());
-            System.exit(1);
-        }
-        return texte;
-    }
-
-    /**
-     * parse un texte
-     *
-     * @param texte
-     * @return le texte parsé
-     */
-    public String parserTexte(String texte) {
-        texte = texte.replace(",", " ,");
-        texte = texte.replace(".", " . ");
-        texte = texte.replace("(", " ( ");
-        texte = texte.replace(")", " ) ");
-        texte = texte.replace("'", " ' ");
-        texte = texte.replace(" E\n", " E \n");
-        texte = texte.replace(" D-ORG", " DORG ");
-        texte = texte.replace(" I-ORG", " IORG ");
-        texte = texte.replace(" D-PERS", " DPERS ");
-        texte = texte.replace(" I-PERS", " IPERS ");
-        texte = texte.replace(" D-LOC", " DLOC ");
-        texte = texte.replace(" I-LOC", " ILOC ");
-        return texte;
-    }
-
-    /**
-     * Ecrit un fichier texte encodé en UTF8
-     *
-     * @param texte
-     * @param fichier
-     */
-    public void ecrireFichierTexte(String texte, String fichier) {
-        try {
-            PrintWriter pw = new PrintWriter(fichier, "UTF-8");
-            pw.print(texte);
-            pw.close();
-        } catch (FileNotFoundException ex) {
-            System.out.println("Problème de fichier : " + ex.getMessage());
-            System.exit(1);
-        } catch (UnsupportedEncodingException ex) {
-            System.out.println("Problème d'encodage : " + ex.getMessage());
-            System.exit(1);
-        }
-    }
-
-    /////////////////////////////////////////////////////////////////////////////
     ///////////////         T4 : Apprentissage automatique        ///////////////
     /////////////////////////////////////////////////////////////////////////////
-
-
-    /**
-     * Permet de transformer la matrice récupéré dans le fichier au format
-     * string en un int[][]
-     *
-     * @param matriceString string à tranformer
-     * @return matrice au format int[][]
-     */
-    private int[][] stringToMatrice(String matriceString) {
-        int[][] matrice = new int[7][nbAttributs];
-        String[] lignes = matriceString.split("\n");
-        for (int i = 0; i < lignes.length; i++) {
-            String[] cases = lignes[i].split("\t");
-            for (int j = 0; j < cases.length; j++) {
-                matrice[i][j] = Integer.parseInt(cases[j]);
-            }
-        }
-        return matrice;
-    }
 
     private final String[] nomTraits = {"MAJ1", "MAJTOUT", "INCONNU", "CAT_NOM", "CAT_ADJ", "CAT_CON", "CAT_PRE",
         "-1CAT_DET", "-1CAT_ADJ", "-1CAT_PRE", "-1CAT_CON", "-1CAT_NOM", "-1CAT_VER", "-1INCONNU",
@@ -298,142 +211,4 @@ public class AEF {
         }
         return res;
     }
-
-    public static void main(String[] args) {
-        AEF aef = new AEF();
-        if ((args.length == 5 && args[0].equals("-train")) || (args.length == 6 && args[0].equals("-annot"))) {
-            aef.automaton = aef.chargerAutomaton("../dico.aef");
-
-            if (args.length == 5 && args[0].equals("-train")) {
-                String texte = aef.lireFichierTexte(args[2], " ");
-                String texteParse = aef.parserTexte(texte);
-                Texte tokens = new Texte(texteParse, aef.automaton);
-
-                if (args[1].equals("-percept")) {
-                    PerceptClassifier pc = new PerceptClassifier(tokens);
-                    String enPercept = pc.perceptronTrain();
-                    aef.ecrireFichierTexte(enPercept, args[4]);
-                    System.out.println("Fichier " + args[4] + " généré");
-                } else if (args[1].equals("-maxent")) {
-                    MaxentClassifier cl = aef.AjouterInstances(tokens);
-                    try {
-                        cl.trainOnInstances();
-                        cl.saveModel(args[4]);
-                        System.out.println("Fichier " + args[4] + " généré");
-                    } catch (IOException ex) {
-                        Logger.getLogger(AEF.class.getName()).log(Level.SEVERE, null, ex);
-                    }
-                }
-
-            } else if (args.length == 6 && args[0].equals("-annot")) {
-                String texte = aef.lireFichierTexte(args[5], " ");
-                String texteParse = aef.parserTexte(texte);
-                Texte tokens = new Texte(texteParse, aef.automaton);
-                
-                if (args[1].equals("-percept")) {
-                    PerceptClassifier pc = new PerceptClassifier(tokens);
-                    String matriceString = aef.lireFichierTexte(args[3], "\n");
-                    int[][] matrice = aef.stringToMatrice(matriceString);
-                    String texteAnnote = pc.perceptronAnnot(matrice);
-                    aef.ecrireFichierTexte(texteAnnote, args[5].replace(".txt", "_annote.txt"));
-                    System.out.println("Fichier " + args[5].replace(".txt", "_annote.txt") + " généré");
-                } else if (args[1].equals("-maxent")) {
-
-                    MaxentClassifier cl = new MaxentClassifier();
-                    try {
-                        cl.loadModel(args[3]);
-                        String texteAnnote = aef.meilleuresPredictions(tokens, cl);
-                        aef.ecrireFichierTexte(texteAnnote, args[5].replace(".txt", "_annote.txt"));
-                        System.out.println("Fichier " + args[5].replace(".txt", "_annote.txt") + " généré");
-                    } catch (IOException ex) {
-                        Logger.getLogger(AEF.class.getName()).log(Level.SEVERE, null, ex);
-                    }
-                }
-            }
-        } else {
-            System.out.println("Usage : java -jar T4.jar -annot [-percept|-maxent] –m <model MOD> –text <texte TXT>");
-            System.out.println("Usage : java -jar T4.jar -train [-percept|-maxent] <en_train TXT> –m <model MOD>");
-        }
-
-    }
-
-//    main de la T2
-//    public static void main(String[] args) {
-//        AEF aef = new AEF();
-//        if (args.length == 2) {
-//            System.out.println("==== Segmentation et analyse morphologique de textes ====");
-//
-//            System.out.print("Chargement de l'AEF ......... ");
-//            aef.automaton = aef.chargerAutomaton(args[0]);
-//            System.out.println("OK");
-//
-//            System.out.print("Lecture du texte ......... ");
-//            String texte = aef.lireFichierTexte(args[1]);
-//            System.out.println("OK");
-//
-//            System.out.print("Analyse du texte ......... ");
-//            String analyse = aef.analyserTexte(texte);
-////            String analyse = aef.analyserTexte(texte.toLowerCase());
-//            System.out.println("OK");
-//
-//            System.out.print("Apprentissage du texte ......... ");
-//            System.out.println("");
-//            aef.perceptronTrain();
-//            System.out.println("OK");
-//
-//            System.out.print("Ecriture du fichier ......... ");
-////            aef.ecrireFichierTexte(analyse, args[1] + ".t2");
-////            System.out.println("OK");
-//            System.out.println("DECOMMANTER");
-////            System.out.println(analyse);
-//        } else {
-//            System.out.println("Usage : java -jar T2.jar <dictionnaire AEF> <fichier texte>");
-//        }
-//    }
-//    public static void main(String[] args) {
-//        AEF aef = new AEF();
-//        if (args.length == 2) {
-//            System.out.println("==== Construction de l'AEF ====");
-//
-//            // Lecture du dictionnaire
-//            System.out.print("Lecture du dictionnaire ......... ");
-//            ArrayList<String[]> lignes = aef.lireFichier(args[0]);
-//            System.out.println("OK");
-//
-//            // Encodage des analyses morphologiques
-//            System.out.print("Encodage des analyses morphologiques ......... ");
-//            CharSequence[] analyses = aef.encodageAnalysesMorphologiques(lignes);
-//            System.out.println("OK");
-//
-//            // Génération de l'AEF
-//            System.out.print("Génération de l'AEF ......... ");
-//            aef.automaton = Automaton.makeStringUnion(analyses);
-//            System.out.println("OK");
-//
-//            // Sauvegarde de l'AEF
-//            System.out.print("Sauvegarde de l'AEF ......... ");
-//            aef.sauvegarderAutomaton(args[1]);
-//            System.out.println("OK");
-//
-//        } else {
-//            if (args.length == 3 && args[0].matches("-test")) {
-//                System.out.println("==== Test de l'AEF ====");
-//
-//                // Chargement de l'AEF
-//                System.out.print("Chargement de l'AEF ......... ");
-//                aef.automaton = aef.chargerAutomaton(args[1]);
-//                System.out.println("OK");
-//
-//                // Test du mot
-//                System.out.print("Test du mot \"" + args[2] + "\" ......... ");
-//                AnalyseMorphologique[] analyses = aef.analyserMot(args[2].toLowerCase());
-//                System.out.println("OK\n");
-//
-//                // Affichage
-//                aef.afficherAnalysesMorphologique(analyses);
-//            } else {
-//                System.out.println("Usage :\nCompilation du dictionnaire : java -jar T1.jar <dictionnaire entrée> <dictionnaire sortie>\nTest de l'AEF : java -jar T1.jar -test <dictionnaire AEF> <mot>");
-//            }
-//        }
-//    }
 }

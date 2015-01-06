@@ -1,8 +1,8 @@
 package industrielangue;
 
 /**
- *
- * @author Christian SCHMIDT
+ *  Class fournissant les méthodes pour la manipulation des tokens
+ * @author Christian SCHMIDT & Gaëtan REMOND
  */
 public class Token {
 
@@ -10,7 +10,6 @@ public class Token {
     private String forme;
     private AnalyseMorphologique[] analyses;
     private boolean[] attributs;
-//    {false, false, false, false, false, false, false, false, false, false, false, false, false};
     private String c_res = "E";
     private String c_ref = null;
 
@@ -152,15 +151,7 @@ public class Token {
 //        }
         retour += " " + this.c_res;
         retour += " " + this.c_ref;
-        
-//        if (this.analyses != null) {
-//            for (AnalyseMorphologique analyse : analyses) {
-////                retour += analyse.getTraits().substring(0, 3) + "\t";
-//                retour += "\t" +analyse.getTraits() + "\t";
-//                index--;
-//            }
-//        }
-        return retour; //To change body of generated methods, choose Tools | Templates.
+        return retour; 
     }
 
 }

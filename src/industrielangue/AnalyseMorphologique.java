@@ -2,7 +2,7 @@ package industrielangue;
 
 /**
  *
- * @author Christian SCHMIDT
+ * @author Christian SCHMIDT & Gaëtan REMOND
  */
 public class AnalyseMorphologique {
     private String lemme;

@@ -1,15 +1,16 @@
 package industrielangue;
 
-import java.util.ArrayList;
 
 /**
- *
- * @author Gat
+ * Class qui fourni les méthodes pour l'entrainement et l'annotation par perseptron simple
+ * @author Christian SCHMIDT & Gaëtan REMOND
  */
 public class PerceptClassifier {
     private final String[] differentesClass = {"E", "D-Org", "D-Pers", "D-Loc", "I-Org", "I-Pers", "I-Loc"};
     private final int nbAttributs = 31;
     private Texte texte;
+    private int[][] model;
+    
     public PerceptClassifier(Texte tokens) {
         this.texte = tokens;
     }
@@ -18,9 +19,8 @@ public class PerceptClassifier {
     /**
      * Méthode d'apprentissage par perceptron
      *
-     * @return int[][] matrice d'apprentissage
      */
-    public String perceptronTrain() {
+    public void perceptronTrain() {
         // Calcul du vecteur invariable
         texte.calculVecteurs();
         int[][] futureMatrice = initMatrice();
@@ -47,22 +47,21 @@ public class PerceptClassifier {
         }
         float precision = (float) compteurBon / (float) (compteurBon + compteurMauvais);
         System.out.println("Précision : " + precision);
-        return matriceToString(currentMatrice);
+        model = currentMatrice;
     }
     
     /**
-     * Méthode d'annotation par percetron simpl
+     * Méthode d'annotation par percetron simple
      *
-     * @param matrice la matrice utilisée pour calculer le argmax
-     * @return
+     * @return le texte annoté
      */
-    public String perceptronAnnot(int[][] matrice) {
+    public String perceptronAnnot() {
         texte.calculVecteurs();
         String res = "";
         int compteurBon = 0, compteurMauvais = 0;
         texte.majVecteurs();
         for (Token token : texte.getTokens()) {
-            int classMax = calculClassMax(matrice, token);
+            int classMax = calculClassMax(model, token);
             token.setC_res(differentesClass[classMax]);
             res += token.getForme() + "\t" + token.getC_res() + "\n";
 
@@ -174,5 +173,41 @@ public class PerceptClassifier {
             }
         }
         return indexMax;
+    }
+
+    /**
+     * Charge une matrice depuis le fichier passé en paramètre
+     * @param nomFichier nom du fichier contenant la matrice
+     */
+    void loadModel(String nomFichier) {
+        String matriceString = AccesFichiers.lireFichierTexte(nomFichier, "\n");
+        model = stringToMatrice(matriceString);
+    }
+
+    /**
+     * Enregistre le model dans le fichier passé en paramètre
+     * @param nomFichier onm du fichier ou sauvegarder la matrice
+     */
+    void saveModel(String nomFichier) {
+        AccesFichiers.ecrireFichierTexte(matriceToString(model), nomFichier);
+    }
+
+    /**
+     * Permet de transformer la matrice récupéré dans le fichier au format
+     * string en un int[][]
+     *
+     * @param matriceString string à tranformer
+     * @return matrice au format int[][]
+     */
+    private int[][] stringToMatrice(String matriceString) {
+        int[][] matrice = new int[7][nbAttributs];
+        String[] lignes = matriceString.split("\n");
+        for (int i = 0; i < lignes.length; i++) {
+            String[] cases = lignes[i].split("\t");
+            for (int j = 0; j < cases.length; j++) {
+                matrice[i][j] = Integer.parseInt(cases[j]);
+            }
+        }
+        return matrice;
     }
 }

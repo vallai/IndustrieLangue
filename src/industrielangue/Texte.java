@@ -7,8 +7,9 @@ import java.util.ArrayList;
 import java.util.Set;
 
 /**
+ * Class qui permet la manipulation du texte sous la forme liste de tokens
  *
- * @author Gat
+ * @author Christian SCHMIDT & Gaëtan REMOND
  */
 public class Texte {
 
@@ -17,30 +18,18 @@ public class Texte {
     private final int nbAttributs = 31;
 
     /**
-     * Analyse un texte et retourne les analyses morphologiques de chaque mot
-     * sous la forme : i-lg forme lemme traits
+     * Analyse un texte et crée une liste de tokens
      *
-     * @param texte
-     * @return
+     * @param automaton
+     * @param texte texte à transformer en tableau de tokens
      */
     public Texte(String texte, Automaton automaton) {
         this.automaton = automaton;
         tokens = new ArrayList<>();
-        String analyseTexte = "";
         int index = 0;
 
-        Token precToken = null;
         Token token = lire_token(texte, index);
         while (token != null) {
-            String affichageToken = token.getOffset() + "-" + token.getForme().length() + "\t" + token.getForme();
-            if (token.getAnalyses() == null) {
-                analyseTexte += affichageToken + "\n";
-            } else {
-                for (AnalyseMorphologique analyse : token.getAnalyses()) {
-                    analyseTexte += affichageToken + "\t" + analyse.getLemme() + "\t" + analyse.getTraits() + "\n";
-                }
-            }
-            analyseTexte += "\n";
             index = token.getOffset() + token.getForme().length();
 
             if (token.getForme().equals("E")
@@ -121,6 +110,7 @@ public class Texte {
             }
         }
     }
+
     /**
      * Recherche le mot donné en paramètre et retourne une liste d'analyses
      * morphologique
